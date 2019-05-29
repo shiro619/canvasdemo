@@ -76,14 +76,15 @@
 			},
 			// 处理像素数据
 			imgRotate(data) {
+				console.log('rotateData')
 				var img_data = data,
 				i, i2, t,
 				h = img_data.height,
 				w = img_data.width;
 				var new_data = {
-					data: [],
-					width: img_data.height,
-					height: img_data.width
+				    data: new Uint8ClampedArray(4 * w * h),
+				    width: h,
+				    height: w
 				}
 				for (var dx = 0; dx < w; dx ++) {
 					for (var dy = 0; dy < h; dy ++) {
@@ -91,31 +92,61 @@
 						var ny = dx
 						var i = (dy << 2) * w + (dx << 2)
 						var i2 = (ny << 2) * h + (nx << 2)
-						if(i > 390 && i < 410) {
-							console.log(i, i2)
-						}
+						// if(i > 390 && i < 410) {
+						// 	console.log(i, i2)
+						// }
 						for (var p = 0; p < 4; p ++) {
 							t = img_data.data[i + p]
 							new_data.data[i2 + p] = t
 						}
 					}
 				}
-				const nd = Uint8ClampedArray.from(new_data.data)
-				return img_data
-				// return {
-				// 	width: new_data.height,
-				// 	height: new_data.width,
-				// 	data: nd
-				// }
+				// new_data.data = Uint8ClampedArray.from(new_data.data)
+				return new_data
+			},
+			imgTranspose (srcImageData) {
+				function createImageData(w, h) {
+				    return {
+				        data: new Uint8ClampedArray(4 * w * h),
+				        width: w,
+				        height: h
+				    }
+				    // return _context.createImageData(w, h);
+				}
+			    var srcPixels = srcImageData.data,
+			        srcWidth = srcImageData.width,
+			        srcHeight = srcImageData.height,
+			        srcLength = srcPixels.length,
+			        dstImageData = createImageData(srcHeight, srcWidth),
+			        dstPixels = dstImageData.data;
+			
+			    var srcIndex, dstIndex;
+			
+			    for (var y = 0; y < srcHeight; y += 1) {
+			        for (var x = 0; x < srcWidth; x += 1) {
+			            srcIndex = (y * srcWidth + x) << 2;
+			            dstIndex = (x * srcHeight + y) << 2;
+			
+			            dstPixels[dstIndex] = srcPixels[srcIndex];
+			            dstPixels[dstIndex + 1] = srcPixels[srcIndex + 1];
+			            dstPixels[dstIndex + 2] = srcPixels[srcIndex + 2];
+			            dstPixels[dstIndex + 3] = srcPixels[srcIndex + 3];
+			        }
+			    }
+			
+			    return dstImageData;
 			},
 			canvastap(e) {
 				const res = this.canvasEventDetail(e)
 				if (res.isMove) {
-					this.imgs[this.topimg].canMove = true
-					this.imgs[res.other].canMove = false
-					this.drawCanvas()
+					if (!this.imgs[this.topimg].canMove) { // 减少渲染
+						this.imgs[this.topimg].canMove = true
+						this.imgs[res.other].canMove = false
+						this.drawCanvas()
+					}
 				} else if (res.isFun) {
 					if (res.isFun === 2) {
+						console.log('fun2')
 						const dotX = this.imgs[this.topimg].x + (this.imgs[this.topimg].w / 2)
 						const dotY = this.imgs[this.topimg].y + (this.imgs[this.topimg].h / 2)
 						this.imgs[this.topimg].deg += 90
@@ -131,19 +162,14 @@
 						}
 						this.imgs[this.topimg].x = info.x
 						this.imgs[this.topimg].y = info.y
-						uni.canvasGetImageData({
-							canvasId: 'customCanvas',
-							x: info.x,
-							y: info.y,
-							width: info.w,
-							height: info.h,
-							success: (res) => {
-								const res1 = this.imgRotate(res)
-								console.log(res)
-								console.log(res1)
-								this.drawCanvas(res1)
-							}
-						})
+						const data = {
+							data: this.imgs[this.topimg].data,
+							width: this.imgs[this.topimg].h,
+							height: this.imgs[this.topimg].w
+						}
+						const res = this.imgRotate(data)
+						this.imgs[this.topimg].data = res
+						this.drawCanvas()
 					}
 				} else if (res.isOther){
 					this.imgs[res.other].canMove = true
@@ -157,6 +183,7 @@
 				}
 			},
 			canvasMoveStart(e) {
+				return
 				console.log('startmove')
 				const res = this.canvasEventDetail(e)
 				if (res.isMove) {
@@ -176,7 +203,7 @@
 					console.log('canMove')
 					this.imgs[this.topimg].x = (res.x - this.imgs[this.topimg].oldx)
 					this.imgs[this.topimg].y = (res.y - this.imgs[this.topimg].oldy)
-					this.drawCanvas()
+					this.drawCanvas(null, true)
 				}
 			},
 			setcanvas() {
@@ -195,86 +222,99 @@
 						this.h = h,
 						this.deg = 0,
 						this.canMove = false,
-						this.onMoving = false
-					}
-					set(res) {
-						console.log('setarg:')
-						console.log(res)
-						const ctx = _this.myCanvas
-						if (this.deg) {
-							const tranX = _this.windowsize.width / 2 - (this.x + (this.w / 2))
-							const tranY = _this.windowsize.height / 2 - (this.y + (this.h / 2))
-							// switch (this.deg) {
-							// 	case 90: ctx.translate(tranX, 0);
-							// 	break;
-							// 	case 180: ctx.translate(0, tranY);
-							// 	break;
-							// 	case 270: ctx.translate(tranX, tranY);
-							// 	break;
-							// }
-							// ctx.translate(tranX, tranY);
-							// ctx.rotate(this.deg * Math.PI / 180)
-							// ctx.translate(-tranX, -tranY);
-						}
-						console.log('deg' + this.deg)
-						if(this.deg && res) {
-							console.log('put')
-							uni.canvasPutImageData({
-								canvasId: 'customCanvas',
-								data: res.data,
-								x: this.x,
-								y: this.y,
-								width: this.w,
-								height: this.h,
-								success: (res) => {
-									console.log(res)
-								}
-							})
-						} else {
-							console.log('set')
-							_this.myCanvas.drawImage(this.url, this.x, this.y, this.w, this.h)
-						}
-						if (this.canMove) {
-							// 方框
-							ctx.beginPath()
-							ctx.strokeStyle = "black"
-							ctx.lineWidth = 2
-							ctx.strokeRect(this.x, this.y, this.w, this.h)
-							// 移动按钮
-							_this.myCanvas.drawImage('/static/move.png', this.x - 20, this.y - 20, 20, 20)
-							// 旋转按钮
-							_this.myCanvas.drawImage('/static/redo.png', this.x + this.w, this.y - 20, 20, 20)
-							// 放大缩小按钮
-							_this.myCanvas.drawImage('/static/size.png', this.x + this.w, this.y + this.h, 20, 20)
-							// 删除按钮
-							_this.myCanvas.drawImage('/static/delete.png', this.x - 20, this.y + this.h, 20, 20)
-							// ctx.moveTo(this.x, this.y)
-							// ctx.lineTo(this.x, this.y + this.h)
-							// ctx.lineTo(this.x + this.w, this.y + this.h)
-							// ctx.lineTo(this.x + this.w, this.y)
-							// ctx.closePath()
-						}
-					}
-					move(x, y) {
-						this.x = x
-						this.y = y
+						this.onMoving = false,
+						this.data = null
 					}
 				}
 				const img1 = new MyImage(0, '/static/1.jpg', 10, 10, 100, 200)
 				const img2 = new MyImage(1, '/static/2.jpg', 50, 50, 100, 200)
 				_this.imgs.push(img1)
 				_this.imgs.push(img2)
-				_this.drawCanvas()
+				_this.myCanvas.drawImage(img1.url, img1.x, img1.y, img1.w, img1.h)
+				// _this.myCanvas.drawImage(img2.url, img2.x, img2.y, img2.w, img2.h)
+				_this.myCanvas.draw(true, () => {
+					uni.canvasGetImageData({
+						canvasId: 'customCanvas',
+						x: img1.x,
+						y: img1.y,
+						width: img1.w,
+						height: img1.h,
+						success: (res) => {
+							img1.data = res.data
+							_this.myCanvas.drawImage(img2.url, img2.x, img2.y, img2.w, img2.h)
+							_this.myCanvas.draw(true, () => {
+								uni.canvasGetImageData({
+									canvasId: 'customCanvas',
+									x: img2.x,
+									y: img2.y,
+									width: img2.w,
+									height: img2.h,
+									success: (res1) => {
+										img2.data = res1.data
+										// _this.drawCanvas()
+										console.log(img1,img2)
+									}
+								})
+							})
+						}
+					})
+				})
 			},
-			drawCanvas(res) {
-				// this.myCanvas.clearRect(0, 0, this.windowsize.width, this.windowsize.height)
-				this.imgs[this.topimg ? 0 : 1].set()
-				this.imgs[this.topimg].set(res || null)
-				this.myCanvas.draw()
+			drawCanvas() {
+				console.log('draw')
+				const _this = this
+				const ctx = _this.myCanvas
+				// ctx.clearRect(0, 0, this.windowsize.width, this.windowsize.height)
+				const imgA = _this.imgs[_this.topimg]
+				const imgB = _this.imgs[this.topimg ? 0 : 1]
+				const drawFun = () => {
+					if (imgA.canMove) {
+						// 方框
+						ctx.beginPath()
+						ctx.strokeStyle = "black"
+						ctx.lineWidth = 2
+						ctx.strokeRect(imgA.x, imgA.y, imgA.w, imgA.h)
+						// 移动按钮
+						ctx.drawImage('/static/move.png', imgA.x - 20, imgA.y - 20, 20, 20)
+						// 旋转按钮
+						ctx.drawImage('/static/redo.png', imgA.x + imgA.w, imgA.y - 20, 20, 20)
+						// 放大缩小按钮
+						ctx.drawImage('/static/size.png', imgA.x + imgA.w, imgA.y + imgA.h, 20, 20)
+						// 删除按钮
+						ctx.drawImage('/static/delete.png', imgA.x - 20, imgA.y + imgA.h, 20, 20)
+					}
+					_this.myCanvas.draw(true)
+				}
+				// console.log(imgA.data)
+				uni.canvasPutImageData({
+				    canvasId: 'customCanvas',
+				    data: imgB.data,
+				    x: imgB.x,
+				    y: imgB.y,
+				    width: imgB.w,
+				    height: imgB.h,
+				    success: res => {
+						console.log(res)
+						console.log('hahahaput')
+						uni.canvasPutImageData({
+						    canvasId: 'customCanvas',
+						    data: imgA.data,
+						    x: imgA.x,
+						    y: imgA.y,
+						    width: imgA.w,
+						    height: imgA.h,
+						    complete: res => {
+								drawFun()
+							},
+						})
+				    }
+				})
 			}
 		},
 		onReady() {
 			this.setcanvas()
+			
+			
 		}
 	}
 </script>
